@@ -2,10 +2,13 @@ package cat.aubricoc.intarraycompressor.service;
 
 import cat.aubricoc.intarraycompressor.exception.CompressorException;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.zip.DeflaterOutputStream;
+import java.nio.charset.Charset;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import me.lemire.integercompression.differential.IntegratedIntCompressor;
+import org.apache.commons.io.FileUtils;
 
 public class CompressorService {
 
@@ -20,15 +23,16 @@ public class CompressorService {
     }
 
     public void compress(File origin, File destination) {
-        try (FileInputStream input = new FileInputStream(origin);
-                FileOutputStream output = new FileOutputStream(destination);
-                DeflaterOutputStream deflater = new DeflaterOutputStream(output);) {
-            int b;
-            while ((b = input.read()) != -1) {
-                deflater.write((byte) b);
-            }
+        try {
+            IntegratedIntCompressor intCompressor = new IntegratedIntCompressor();
+            Charset encoding = Charset.defaultCharset();
+            String stringInput = FileUtils.readFileToString(origin, encoding);
+            int[] arrayInput = Stream.of(stringInput.split(",")).mapToInt(Integer::parseInt).toArray();
+            int[] arrayOutput = intCompressor.compress(arrayInput);
+            String stringOutput = IntStream.of(arrayOutput).mapToObj(item -> item + ",").collect(Collectors.joining());
+            FileUtils.writeStringToFile(destination, stringOutput, encoding);
         } catch (IOException e) {
-            throw new CompressorException("Error when compress file", e);
+            throw new CompressorException("Error when compress int array", e);
         }
     }
 }
